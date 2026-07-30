@@ -1,0 +1,137 @@
+name: onboard-repo
+on:
+  workflow_dispatch:
+    inputs:
+      repo_name:
+        description: "New repo name (lowercase, no spaces)"
+        type: string
+        required: true
+      description:
+        description: "Short repo description"
+        type: string
+        required: false
+        default: ""
+      private:
+        description: "Make repo private? (Public recommended for free runner minutes)"
+        type: boolean
+        required: false
+        default: false
+      template:
+        description: "Template to scaffold into the new repo"
+        type: choice
+        options:
+          - minimal
+          - node
+          - python
+        default: minimal
+      add_topics:
+        description: "Comma-separated GitHub topics to add"
+        type: string
+        required: false
+        default: "code-monkey,opencode"
+
+jobs:
+  create:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate inputs
+        run: |
+          NAME="${{ inputs.repo_name }}"
+          if ! echo "$NAME" | grep -qE '^[a-z0-9._-]+$'; then
+            echo "::error::repo_name must be lowercase, no spaces."
+            exit 1
+          fi
+
+      - name: Checkout code-monkey
+        uses: actions/checkout@v4
+        with:
+          path: code-monkey
+          fetch-depth: 1
+
+      - name: Create repo
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          NAME: ${{ inputs.repo_name }}
+          DESC: ${{ inputs.description }}
+          PRIVATE: ${{ inputs.private }}
+        run: |
+          VIS="--public"
+          if [ "$PRIVATE" = "true" ]; then VIS="--private"; fi
+          if gh repo view "$NAME" >/dev/null 2>&1; then
+            echo "::error::Repo $NAME already exists."
+            exit 1
+          fi
+          gh repo create "$NAME" $VIS --description "$DESC" --add-readme
+
+      - name: Clone new repo
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          NAME: ${{ inputs.repo_name }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/ian/${NAME}.git" new-repo
+          cd new-repo
+          git config user.name "code-monkey"
+          git config user.email "code-monkey@users.noreply.github.com"
+
+      - name: Scaffold template
+        env:
+          TEMPLATE: ${{ inputs.template }}
+        run: |
+          cd new-repo
+          cp -r ../code-monkey/templates/$TEMPLATE/. .
+          cp ../code-monkey/AGENTS.md .
+          git add -A
+          git commit -m "chore: scaffold from code-monkey (template: $TEMPLATE)"
+          git push origin main
+
+      - name: Add topics
+        if: inputs.add_topics != ''
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          NAME: ${{ inputs.repo_name }}
+          TOPICS: ${{ inputs.add_topics }}
+        run: |
+          gh repo edit "$NAME" --add-topic "$(echo $TOPICS | tr ',' '\n' | head -1)" || true
+          for t in $(echo $TOPICS | tr ',' '\n'); do
+            gh repo edit "$NAME" --add-topic "$t" || true
+          done
+
+      - name: Mirror secrets
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          NAME: ${{ inputs.repo_name }}
+        run: |
+          gh secret set OPENCODE_API_KEY --repo "ian/$NAME" --body "$OPENCODE_API_KEY"
+          gh secret set OPENCODE_GH_PAT --repo "ian/$NAME" --body "$OPENCODE_GH_PAT"
+          echo "Secrets copied to ian/$NAME"
+
+      - name: Open welcome issue
+        env:
+          GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          NAME: ${{ inputs.repo_name }}
+        run: |
+          cat > /tmp/welcome.md <<'EOF'
+          Welcome to your new repo, scaffolded by **code-monkey**.
+
+          ## What you have
+          - `.github/workflows/` — issue-to-pr, pr-review, and `/oc` comment triggers
+          - `AGENTS.md` — house rules opencode follows
+          - `opencode.json` — model + MCP defaults (free Zen models)
+
+          ## Quick start
+          1. Open an issue describing a feature or fix.
+          2. Add the `build` label.
+          3. opencode will open a draft PR with a plan; reply `/oc go` to implement.
+          4. Or just comment `/oc <instruction>` on any issue/PR.
+
+          Reply `/oc review` on the welcome PR to test the reviewer.
+          EOF
+          gh issue create --repo "ian/$NAME" \
+            --title "Welcome to $NAME" \
+            --body-file /tmp/welcome.md \
+            --label "build"
+
+      - name: Summary
+        run: |
+          echo "Onboarded: https://github.com/ian/${{ inputs.repo_name }}"

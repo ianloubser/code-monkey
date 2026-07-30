@@ -1,0 +1,168 @@
+name: reusable-opencode
+on:
+  workflow_call:
+    inputs:
+      prompt:
+        description: "Prompt to pass to opencode (overrides default)"
+        type: string
+        required: false
+        default: ""
+      model:
+        description: "Single model override. If set, skips the fallback chain."
+        type: string
+        required: false
+        default: ""
+      model_chain:
+        description: "Comma-separated fallback chain. Tried in order until one succeeds."
+        type: string
+        required: false
+        default: "opencode/big-pickle,opencode/deepseek-v4-flash-free,opencode/nemotron-3-ultra-free,opencode/mimo-v2.5-free"
+      agent:
+        description: "Agent to use. Falls back to repo default_agent or 'build'."
+        type: string
+        required: false
+        default: ""
+      mentions:
+        description: "Comma-separated trigger phrases (case-insensitive). Empty = use action default."
+        type: string
+        required: false
+        default: ""
+      allowed_actors:
+        description: "Comma-separated GitHub usernames allowed to trigger. Empty = no allowlist."
+        type: string
+        required: false
+        default: "ian"
+      timeout_minutes:
+        description: "Job timeout in minutes"
+        type: number
+        required: false
+        default: 20
+    secrets:
+      OPENCODE_GH_PAT:
+        required: false
+      OPENCODE_API_KEY:
+        required: false
+      ANTHROPIC_API_KEY:
+        required: false
+
+jobs:
+  opencode:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout_minutes }}
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    concurrency:
+      group: opencode-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Actor allowlist
+        if: inputs.allowed_actors != ''
+        id: allow
+        env:
+          ACTOR: ${{ github.actor }}
+          ALLOW: ${{ inputs.allowed_actors }}
+        run: |
+          echo "actor=$ACTOR"
+          if ! echo ",$ALLOW," | grep -qi ",$ACTOR,"; then
+            echo "::error::Actor $ACTOR is not in the allowlist ($ALLOW)."
+            exit 1
+          fi
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout code-monkey sidecar
+        uses: actions/checkout@v4
+        with:
+          repository: ian/code-monkey
+          ref: main
+          path: .code-monkey
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Merge shared skills and agents
+        shell: bash
+        run: |
+          set -e
+          SIDECAR=".code-monkey"
+          [ -d "$SIDECAR" ] || { echo "::error::Sidecar checkout missing"; exit 1; }
+
+          mkdir -p .opencode/agent .opencode/skills
+
+          if [ -d "$SIDECAR/.opencode/agent" ]; then
+            cp -rn "$SIDECAR/.opencode/agent/." .opencode/agent/ 2>/dev/null || true
+          fi
+          if [ -d "$SIDECAR/.opencode/skills" ]; then
+            cp -rn "$SIDECAR/.opencode/skills/." .opencode/skills/ 2>/dev/null || true
+          fi
+
+          echo "Merged from sidecar:"
+          echo "  agents:  $(ls .opencode/agent 2>/dev/null | tr '\n' ' ')"
+          echo "  skills:  $(ls .opencode/skills 2>/dev/null | tr '\n' ' ')"
+
+      - name: Resolve model chain
+        id: models
+        env:
+          SINGLE: ${{ inputs.model }}
+          CHAIN: ${{ inputs.model_chain }}
+        shell: bash
+        run: |
+          if [ -n "$SINGLE" ]; then
+            {
+              echo "models<<EOF"
+              echo "$SINGLE"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "models<<EOF"
+              echo "$CHAIN" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$'
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run opencode (fallback chain)
+        id: chain
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMPT: ${{ inputs.prompt }}
+          AGENT: ${{ inputs.agent }}
+          MENTIONS: ${{ inputs.mentions }}
+          USE_GITHUB_TOKEN: "true"
+          SHARE: "false"
+        shell: bash
+        run: |
+          set +e
+          LAST_STATUS=1
+          USED_MODEL=""
+          while IFS= read -r MODEL; do
+            [ -z "$MODEL" ] && continue
+            echo "::group::Trying model: $MODEL"
+            MODEL="$MODEL" opencode github run
+            STATUS=$?
+            echo "::endgroup::"
+            LAST_STATUS=$STATUS
+            USED_MODEL="$MODEL"
+            if [ $STATUS -eq 0 ]; then
+              {
+                echo "used_model=$USED_MODEL"
+                echo "all_ok=true"
+              } >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::warning::Model $MODEL failed (exit $STATUS). Trying next."
+          done <<< "${{ steps.models.outputs.models }}"
+          {
+            echo "used_model=${USED_MODEL:-none}"
+            echo "all_ok=false"
+          } >> "$GITHUB_OUTPUT"
+          echo "::error::All models in chain failed. Last exit: $LAST_STATUS"
+          exit $LAST_STATUS

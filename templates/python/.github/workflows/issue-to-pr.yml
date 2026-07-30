@@ -1,0 +1,14 @@
+name: issue-to-pr
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  opencode:
+    uses: ian/code-monkey/.github/workflows/reusable-opencode.yml@main
+    with:
+      agent: build
+      timeout_minutes: 30
+    secrets:
+      OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}

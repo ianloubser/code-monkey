@@ -1,0 +1,9 @@
+{
+  "name": "REPLACE_ME",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint": "echo 'add a linter'",
+    "test": "echo 'add tests'"
+  }
+}

@@ -1,0 +1,27 @@
+name: scheduled-maintenance
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+jobs:
+  scan:
+    uses: ./.github/workflows/reusable-opencode.yml
+    with:
+      agent: build
+      timeout_minutes: 30
+      prompt: |
+        You are running a weekly maintenance scan. In the current repo:
+        1. Find TODO / FIXME / XXX comments. File one issue per cluster
+           (max 3 issues), each titled with the file path. Add the `build` label.
+        2. Check `package.json` / `requirements.txt` / `Cargo.toml` for
+           outdated major dependencies. If any are >1 major behind, file a
+           single "dependency update" issue. Add the `build` label.
+        3. If any opencode-managed workflows have failed in the last 7 days,
+           file a "flaky workflow" issue referencing the failed runs.
+        Do not modify code. Do not open PRs. Only file issues.
+        End your run by commenting on any open issues that look stale (>30d
+        no activity) with a `/oc status` prompt.
+    secrets:
+      OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
+      OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
