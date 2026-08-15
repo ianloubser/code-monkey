@@ -13,6 +13,7 @@
     "context7": {
       "type": "stdio",
       "command": "npx",
+      "enabled": false,
       "args": ["-y", "@upstash/context7-mcp"]
     }
   },
