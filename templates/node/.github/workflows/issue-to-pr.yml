@@ -3,6 +3,12 @@ on:
   issues:
     types: [labeled]
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
 jobs:
   opencode:
     uses: ian/code-monkey/.github/workflows/reusable-opencode.yml@main
