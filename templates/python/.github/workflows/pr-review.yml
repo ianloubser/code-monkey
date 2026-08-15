@@ -3,6 +3,12 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
 jobs:
   review:
     uses: ianloubser/code-monkey/.github/workflows/reusable-opencode.yml@main

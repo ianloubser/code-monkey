@@ -4,6 +4,12 @@ on:
     - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
 jobs:
   scan:
     uses: ./.github/workflows/reusable-opencode.yml
