@@ -2,7 +2,7 @@
 
 This repo is wired into the **code-monkey** automation hub. Shared rules
 (PR contract, scope discipline, no-secrets, free-model awareness) are
-injected at runtime from `ian/code-monkey/standards/core.md` — you do
+injected at runtime from `ianloubser/code-monkey/standards/core.md` — you do
 **not** need to repeat them here.
 
 This file is for **repo-specific** rules only.
@@ -39,5 +39,5 @@ copy.
 ## File conventions
 
 - Reusable workflows from this hub are referenced as
-  `uses: ian/code-monkey/.github/workflows/<file>@main`.
+  `uses: ianloubser/code-monkey/.github/workflows/<file>@main`.
 - Secrets live in repo Settings → Secrets. Never in code.

@@ -26,11 +26,11 @@ called Y", or "scaffold a repo".
 ## How
 
 **Always prefer the workflow, not raw git.** Trigger the
-`onboard-repo` workflow in `ian/code-monkey` via the GitHub API:
+`onboard-repo` workflow in `ianloubser/code-monkey` via the GitHub API:
 
 ```bash
 gh workflow run onboard-repo \
-  -R ian/code-monkey \
+  -R ianloubser/code-monkey \
   -f repo_name=<name> \
   -f description="<desc>" \
   -f private=false \

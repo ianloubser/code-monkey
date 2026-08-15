@@ -80,11 +80,12 @@ jobs:
       - name: Checkout code-monkey sidecar
         uses: actions/checkout@v4
         with:
-          repository: ian/code-monkey
+          repository: ianloubser/code-monkey
           ref: main
           path: .code-monkey
           fetch-depth: 1
           persist-credentials: false
+          token: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Merge shared skills and agents
         shell: bash

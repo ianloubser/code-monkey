@@ -27,8 +27,8 @@ workflow file.
    `actions/setup-node@v4`. Never `@latest` in committed workflows.
 3. **For composite secrets, use `secrets: inherit`** when calling
    reusable workflows from the same org/user.
-4. **For `uses: ian/code-monkey/...`** reference the file with `@main`
-   suffix: `uses: ian/code-monkey/.github/workflows/reusable-opencode.yml@main`.
+4. **For `uses: ianloubser/code-monkey/...`** reference the file with `@main`
+   suffix: `uses: ianloubser/code-monkey/.github/workflows/reusable-opencode.yml@main`.
 5. **Permissions: least privilege.** Start with `contents: read` and add
    `write` scopes only as needed. `id-token: write` is required for
    opencode's OIDC flow.
