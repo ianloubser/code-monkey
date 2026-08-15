@@ -96,6 +96,18 @@ jobs:
           persist-credentials: false
           token: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
 
+      - name: Configure git credentials
+        # Checkouts above run with persist-credentials: false, so no
+        # credential helper is left behind and the agent's own git push
+        # fails with "could not read Username for 'https://github.com'".
+        # Rewrite github.com URLs to embed the same token used by the
+        # opencode step below.
+        env:
+          GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+
       - name: Merge shared skills and agents
         shell: bash
         run: |
