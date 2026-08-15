@@ -77,6 +77,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Configure git identity
+        # opencode commits/pushes the agent's changes itself; without an
+        # identity every commit fails with "Author identity unknown" and the
+        # error is posted back as a comment, re-triggering this workflow.
+        shell: bash
+        run: |
+          git config --global user.name "opencode-agent[bot]"
+          git config --global user.email "opencode-agent[bot]@users.noreply.github.com"
+
       - name: Checkout code-monkey sidecar
         uses: actions/checkout@v4
         with:

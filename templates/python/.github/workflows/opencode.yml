@@ -13,6 +13,14 @@ permissions:
 
 jobs:
   opencode:
+    # Only run when a comment actually invokes the agent. Without this
+    # filter the workflow fires on every comment (including the bot's own
+    # replies/errors), which causes an infinite comment/re-run loop.
+    if: |
+      contains(github.event.comment.body, ' /oc') ||
+      startsWith(github.event.comment.body, '/oc') ||
+      contains(github.event.comment.body, ' /opencode') ||
+      startsWith(github.event.comment.body, '/opencode')
     uses: ianloubser/code-monkey/.github/workflows/reusable-opencode.yml@main
     with:
       agent: build
