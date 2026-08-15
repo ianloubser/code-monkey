@@ -8,7 +8,7 @@ jobs:
     uses: ./.github/workflows/reusable-opencode.yml
     with:
       agent: build
-      allowed_actors: ian
+      allowed_actors: ianloubser
       timeout_minutes: 30
       prompt: |
         You were triggered by the `build` label on this issue. Read the full
