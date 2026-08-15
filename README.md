@@ -91,7 +91,7 @@ In any repo that has been onboarded:
 
 ## Copy-at-bootstrap vs runtime-shared
 
-`reusable-opencode.yml` checks out `ian/code-monkey` as a sidecar
+`reusable-opencode.yml` checks out `ianloubser/code-monkey` as a sidecar
 (`.code-monkey/`) on every run and **merges** the shared assets into the
 consumer repo's `.opencode/`. Repo-local files win (`cp -n`).
 

@@ -2,7 +2,7 @@
 
 This repo is wired into the **code-monkey** automation hub. Shared rules
 (PR contract, scope discipline, no-secrets, free-model awareness) are
-injected at runtime from `ian/code-monkey/standards/core.md`.
+injected at runtime from `ianloubser/code-monkey/standards/core.md`.
 
 ## Stack
 

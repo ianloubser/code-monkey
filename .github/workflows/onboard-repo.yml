@@ -68,8 +68,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
           NAME: ${{ inputs.repo_name }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/ian/${NAME}.git" new-repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${OWNER}/${NAME}.git" new-repo
           cd new-repo
           git config user.name "code-monkey"
           git config user.email "code-monkey@users.noreply.github.com"
@@ -100,16 +101,20 @@ jobs:
       - name: Mirror secrets
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
           NAME: ${{ inputs.repo_name }}
+          OWNER: ${{ github.repository_owner }}
         run: |
-          gh secret set OPENCODE_API_KEY --repo "ian/$NAME" --body "$OPENCODE_API_KEY"
-          gh secret set OPENCODE_GH_PAT --repo "ian/$NAME" --body "$OPENCODE_GH_PAT"
-          echo "Secrets copied to ian/$NAME"
+          gh secret set OPENCODE_API_KEY --repo "$OWNER/$NAME" --body "$OPENCODE_API_KEY"
+          gh secret set OPENCODE_GH_PAT --repo "$OWNER/$NAME" --body "$OPENCODE_GH_PAT"
+          echo "Secrets copied to $OWNER/$NAME"
 
       - name: Open welcome issue
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
           NAME: ${{ inputs.repo_name }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           cat > /tmp/welcome.md <<'EOF'
           Welcome to your new repo, scaffolded by **code-monkey**.
@@ -127,11 +132,11 @@ jobs:
 
           Reply `/oc review` on the welcome PR to test the reviewer.
           EOF
-          gh issue create --repo "ian/$NAME" \
+          gh issue create --repo "$OWNER/$NAME" \
             --title "Welcome to $NAME" \
             --body-file /tmp/welcome.md \
             --label "build"
 
       - name: Summary
         run: |
-          echo "Onboarded: https://github.com/ian/${{ inputs.repo_name }}"
+          echo "Onboarded: https://github.com/${{ github.repository_owner }}/${{ inputs.repo_name }}"
