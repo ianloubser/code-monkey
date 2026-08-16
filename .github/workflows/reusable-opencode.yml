@@ -75,7 +75,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
+          # Persist the token so opencode's own git push works. Prefer the
+          # PAT when provided; otherwise fall back to the job's GITHUB_TOKEN
+          # (which has contents: write via the job permissions below).
+          token: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Configure git identity
         # opencode commits/pushes the agent's changes itself; without an
@@ -93,20 +96,7 @@ jobs:
           ref: main
           path: .code-monkey
           fetch-depth: 1
-          persist-credentials: false
           token: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
-
-      - name: Configure git credentials
-        # Checkouts above run with persist-credentials: false, so no
-        # credential helper is left behind and the agent's own git push
-        # fails with "could not read Username for 'https://github.com'".
-        # Rewrite github.com URLs to embed the same token used by the
-        # opencode step below.
-        env:
-          GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
-        shell: bash
-        run: |
-          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
       - name: Merge shared skills and agents
         shell: bash
