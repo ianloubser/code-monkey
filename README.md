@@ -10,10 +10,11 @@ action. No paid LLM API required — runs on free Zen models by default.
 ## How it works
 
 ```
-issue ── label "build" ──▶ issue-to-pr.yml ──▶ opencode (free model) ──▶ PR
-                                                                      │
-PR comment "/oc fix this" ──▶ opencode.yml ──▶ opencode ──▶ commit ───┘
-PR opened ──▶ pr-review.yml ──▶ opencode (reviewer) ──▶ review comment
+issue ── label "build" ──▶ issue-to-pr.yml ──▶ opencode (free model) ──▶ draft PR ──▶ ready ──▶ review
+                                                      (branch pushed early, commits after every milestone;
+                                                       draft PRs are never auto-reviewed)
+PR comment "/oc fix this" ──▶ opencode.yml ──▶ opencode ──▶ commit ──▶ push
+PR ready ──▶ pr-review.yml ──▶ opencode (reviewer) ──▶ review comment
 ```
 
 Everything is a `workflow_call` into `.github/workflows/reusable-opencode.yml`,
@@ -22,7 +23,7 @@ kill a run.
 
 ## One-time setup
 
-### 1. Create a classic PAT
+### 1. (Only for onboarding new repos) Create a classic PAT
 
 Fine-grained PATs can't create repos or pre-grant workflow scope to repos
 that don't exist yet, so use a **classic PAT** with these scopes:
@@ -32,6 +33,11 @@ that don't exist yet, so use a **classic PAT** with these scopes:
 
 Save it as the secret **`OPENCODE_GH_PAT`** in this repo (Settings → Secrets
 and variables → Actions).
+
+Everyday maintenance — issue-to-pr, pr-review, `/oc` comments, and the
+weekly scheduled-maintenance — runs on the repo's own **`GITHUB_TOKEN`**;
+no PAT is needed for those. The PAT is only required by **onboard-repo**,
+which creates new repos and mirrors secrets into them.
 
 ### 2. Create a free Zen API key
 
@@ -51,17 +57,21 @@ Inputs:
 - `private` — leave unchecked (public = free runner minutes)
 - `template` — `minimal`, `node`, or `python`
 
-The workflow creates the repo, scaffolds template files, copies both
-secrets to the new repo, adds topics, and opens a welcome issue labeled
+The workflow creates the repo, scaffolds template files, copies the model
+API key to the new repo, adds topics, and opens a welcome issue labeled
 `build` so you can see the whole pipeline end-to-end.
 
 ## Day-to-day usage
 
 In any repo that has been onboarded:
 
-- **Issue → PR:** Open an issue, add the `build` label. opencode opens a
-  draft PR with a plan; reply `/oc go` to implement.
-- **PR review:** Every PR gets an automatic review from the `review` agent.
+- **Issue → PR:** Open an issue, add the `build` label. opencode pushes a
+  branch and opens a **draft PR** immediately, then commits and pushes after
+  every milestone — a timed-out run keeps everything pushed so far. When the
+  work is done and tests pass, it marks the PR ready for review.
+- **PR review:** Every PR gets an automatic review from the `review` agent —
+  but only once it is **not a draft** anymore. Drafts are skipped until
+  marked ready.
 - **Ad-hoc commands:** On any issue or PR, comment `/oc <instruction>`.
   Examples: `/oc explain this issue`, `/oc add a /healthz endpoint`,
   `/oc review`.
@@ -135,6 +145,8 @@ Zen rotates free models periodically. To refresh, update the default
 ## Safety
 
 - All work lands on a branch; never pushes to `main` directly.
+- Draft PRs are never auto-reviewed — reviews fire only when a PR is marked
+  ready.
 - Public repos: actor allowlist gates every trigger.
 - `share: false` — opencode sessions are not published.
 - Fork PRs never receive secrets (GitHub default).

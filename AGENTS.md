@@ -44,9 +44,14 @@ duplicating rules.
   what you did.
 - When triggered by an issue `build` label, default plan:
   1. Read the issue, search the repo for related code
-  2. Open a **draft PR** with a plan in the first comment (so the user can
-     steer before you burn compute)
-  3. Wait for `/oc go` on the PR before implementing
+  2. Create branch `agent/<issue-number>-<kebab-summary>`, push it, and open
+     a **draft PR** immediately
+  3. Implement in milestones, committing and pushing after each one — never
+     leave work only in the local tree (runs have a hard timeout)
+  4. When done and tests pass, mark the PR ready (`gh pr ready`); draft PRs
+     are never auto-reviewed
+  5. If the issue is ambiguous or too large, stop at the draft PR with a
+     plan and wait for `/oc go` on the PR
 - When triggered by `plan` label, **comment-only** — no code changes.
 
 ## Free model awareness
