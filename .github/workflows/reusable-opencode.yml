@@ -22,6 +22,11 @@ on:
         type: string
         required: false
         default: ""
+      trigger:
+        description: "Set to 'issue-build' to use the code-monkey dispatcher (own branch/PR/commit flow via `opencode run`). Empty = legacy `opencode github run` path."
+        type: string
+        required: false
+        default: ""
       mentions:
         description: "Comma-separated trigger phrases (case-insensitive). Empty = use action default."
         type: string
@@ -155,7 +160,104 @@ jobs:
             opencode --version
           fi
 
+      - name: Build path — dispatch to opencode run
+        if: ${{ inputs.trigger == 'issue-build' }}
+        id: build_dispatch
+        env:
+          # GITHUB_TOKEN only on this path — no PAT, no opencode GitHub App.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NUM: ${{ github.event.issue.number }}
+          AGENT: ${{ inputs.agent }}
+          MODELS: ${{ steps.models.outputs.models }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${NUM:?issue number missing — trigger=issue-build requires an issues event}"
+          AGENT="${AGENT:-build}"
+
+          # --- assemble issue context ---
+          ISSUE_JSON=$(gh issue view "$NUM" --json title,body,comments)
+          TITLE=$(printf '%s' "$ISSUE_JSON" | jq -r '.title')
+          BODY=$(printf '%s' "$ISSUE_JSON" | jq -r '.body // ""')
+          COMMENTS=$(printf '%s' "$ISSUE_JSON" | jq -r '
+            (.comments // [])
+            | map("- \(.author.login // "unknown"):\n\(.body)")
+            | join("\n\n")')
+
+          # slugify the title into a kebab branch suffix
+          slug=$(printf '%s' "$TITLE" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g' | sed 's/^-//;s/-$//')
+          slug=${slug:0:40}
+          [ -z "$slug" ] && slug="work"
+          branch="agent/${NUM}-${slug}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Dispatching issue #$NUM to branch $branch"
+
+          # --- branch + draft PR (resume if a previous run already pushed it) ---
+          if git ls-remote --heads origin "$branch" | grep -q "$branch"; then
+            echo "Resuming existing branch $branch"
+            git fetch --depth=1 origin "$branch"
+            git checkout "$branch"
+          else
+            git checkout -b "$branch"
+            # An empty commit lets the draft PR exist immediately, before the
+            # agent has produced any real work. The agent fills the branch.
+            git commit --allow-empty -m "chore: start work on #${NUM}"
+            git push -u origin "$branch"
+            gh pr create --draft --title "WIP: ${TITLE}" --body "Fixes #${NUM}" >/dev/null
+          fi
+          PR_NUM=$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')
+          echo "pr=$PR_NUM" >> "$GITHUB_OUTPUT"
+          gh issue comment "$NUM" --body "Building on \`$branch\` → PR #$PR_NUM ([run]($RUN_URL))"
+
+          # --- prompt: agent follows .opencode/agent/build.md for the flow ---
+          PROMPT="You were triggered by the \`build\` label on issue #${NUM}. Implement it following your builder instructions in \`.opencode/agent/build.md\`.
+
+          The dispatcher has already created and pushed branch \`$branch\` and opened draft PR #$PR_NUM. Do NOT create a branch or open a PR. Implement in milestones, committing and pushing after each one (the run has a hard timeout — unpushed work is lost), run the project's lint + tests, finalize the PR body (Fixes #${NUM}, summary, test plan, risk/rollback), then run \`gh pr ready\` when done and green.
+
+          ISSUE #${NUM}: ${TITLE}
+
+          ${BODY}
+
+          Comments:
+          ${COMMENTS}"
+
+          # --- run the builder with the model fallback chain ---
+          set +e
+          LAST_STATUS=1
+          while IFS= read -r MODEL; do
+            [ -z "$MODEL" ] && continue
+            echo "::group::Trying model: $MODEL"
+            opencode run --agent "$AGENT" --model "$MODEL" --auto "$PROMPT"
+            STATUS=$?
+            echo "::endgroup::"
+            LAST_STATUS=$STATUS
+            if [ $STATUS -eq 0 ]; then break; fi
+            echo "::warning::Model $MODEL failed (exit $STATUS). Trying next."
+          done <<< "$MODELS"
+          exit $LAST_STATUS
+
+      - name: Build path — finalize comment
+        if: ${{ always() && inputs.trigger == 'issue-build' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUM: ${{ github.event.issue.number }}
+          BRANCH: ${{ steps.build_dispatch.outputs.branch }}
+          PR: ${{ steps.build_dispatch.outputs.pr }}
+          OUTCOME: ${{ steps.build_dispatch.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ "$OUTCOME" = "success" ]; then
+            gh issue comment "$NUM" --body "Done — see PR #${PR} (\`${BRANCH}\`)."
+          else
+            gh issue comment "$NUM" --body "Build run failed; see [logs]($RUN_URL). Partial work may be on \`${BRANCH}\` (draft PR #${PR})."
+          fi
+
       - name: Run opencode (fallback chain)
+        if: ${{ inputs.trigger == '' }}
         id: chain
         env:
           GITHUB_TOKEN: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}

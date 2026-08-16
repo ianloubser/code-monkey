@@ -124,13 +124,20 @@ jobs:
           - `AGENTS.md` — house rules opencode follows
           - `opencode.json` — model + MCP defaults (free Zen models)
 
+          ## Required repo setting (one-time)
+          Settings → Actions → General → Workflow permissions → enable
+          **"Allow GitHub Actions to create and approve pull requests"**.
+          Without it, the `build` flow can't open draft PRs or mark them ready.
+
           ## Quick start
           1. Open an issue describing a feature or fix.
           2. Add the `build` label.
-          3. opencode will open a draft PR with a plan; reply `/oc go` to implement.
-          4. Or just comment `/oc <instruction>` on any issue/PR.
+          3. The dispatcher pushes a branch and opens a **draft PR**, then the
+             builder implements in milestones (committing + pushing after each)
+             and marks the PR ready when green.
+          4. Or comment `/oc <instruction>` on any issue/PR for ad-hoc work.
 
-          Reply `/oc review` on the welcome PR to test the reviewer.
+          Reply `/oc review` on a PR to test the reviewer.
           EOF
           gh issue create --repo "$OWNER/$NAME" \
             --title "Welcome to $NAME" \

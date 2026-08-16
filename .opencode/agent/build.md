@@ -15,31 +15,30 @@ When invoked, you MUST follow `AGENTS.md` in the repo root. In particular:
 - If a free model ran you, mention in the PR body if a stronger model is
   recommended for follow-up work.
 
+## Division of labor
+
+You do **not** create branches or open PRs — the dispatcher (the reusable
+workflow that launched you) already did both before you started:
+
+- Branch `agent/<issue-number>-<kebab-summary>` is created, pushed, and
+  checked out.
+- A **draft** PR is open against it.
+
+Your job is to implement, save your work as you go, and mark the PR ready
+when you're done. Never create a branch, never run `gh pr create`, and
+don't reconfigure git identity (it's already set in the runner).
+
 ## Save your work early and often
 
 Workflow runs have a hard timeout and can be killed at any moment. Never
 leave the only copy of your work in the local working tree — commit and
-push as you go.
+push as you go. This is the single most important rule.
 
 ### Triggered on an issue (issue-to-pr)
 
-1. Create a branch `agent/<issue-number>-<kebab-summary>` — never push to
-   main.
-2. Push it and open a **draft** PR right away, before doing any work:
-
-   ```
-   git push -u origin agent/<issue-number>-<kebab-summary>
-   gh pr create --draft \
-     --title "WIP: <issue title>" \
-     --body "Fixes #<issue-number>
-
-   <one-line plan>"
-   ```
-
-   A draft PR is safe to create even when the work is unfinished — draft
-   PRs never trigger automated reviews.
-3. Implement in small milestones. After each milestone that leaves the repo
-   coherent, commit **and push**:
+1. You're already on branch `agent/<issue-number>-<kebab-summary>` with a
+   draft PR open. Implement in small milestones. After each milestone that
+   leaves the repo coherent, commit **and push**:
 
    ```
    git add -A
@@ -49,32 +48,31 @@ push as you go.
 
    If the run is killed by a timeout, everything pushed so far is preserved
    on the branch instead of being lost.
-4. When the work is done, lint/tests pass, and the PR body has the required
-   sections (summary, test plan, risk/rollback), mark it ready:
+
+2. Run the project's lint + tests. Paste the output in the PR body under
+   "Test plan" (`gh pr edit --body "..."`, or edit the body in place).
+
+3. Finalize the PR body with the required sections — `Fixes #<issue>`,
+   one-paragraph summary, test plan, risk/rollback notes — then mark it
+   ready:
 
    ```
    gh pr ready
    ```
 
-   Only mark ready when you would accept a human review.
+   Only mark ready when you would accept a human review. Draft PRs are never
+   auto-reviewed, so leaving work as a draft is always safe.
 
-If the issue is ambiguous or too large for one PR, stop after step 2, put a
-plan in the draft PR body, and wait — the user will comment `/oc go` to
-continue.
+If the issue is ambiguous or too large for one PR, stop, put a plan in the
+draft PR body, and leave it as a draft — the user will comment `/oc go` to
+continue. Don't mark it ready.
 
-#### Re-running after a timeout (resume, don't recreate)
+### Re-running after a timeout (resume)
 
-A previous run may have already pushed this branch and opened the draft PR.
-Check before creating anything new:
-
-```
-git fetch origin
-git checkout agent/<issue-number>-<kebab-summary>  # or: -b <branch> origin/<branch>
-gh pr list --head agent/<issue-number>-<kebab-summary> --state open
-```
-
-Resume the existing branch/PR and keep pushing to it. Never force-push a
-branch that a draft PR is attached to.
+A previous run may have already pushed commits to this branch and opened
+the draft PR. The dispatcher handles resuming the branch/PR for you; you
+just keep working on the branch you were checked out on and keep pushing.
+Never force-push a branch that a draft PR is attached to.
 
 ### Triggered on a PR comment (/oc)
 

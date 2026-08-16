@@ -12,9 +12,13 @@ if a conflict exists. Detailed guidance lives in the sibling files
 4. **One issue, one PR.** Don't bundle unrelated changes.
 5. **Idempotent re-runs.** Never break when re-triggered on the same
    issue/PR. Detect existing work and pick up where you left off.
-6. **Save work incrementally.** Push the branch and open a draft PR early;
-   commit + push after every milestone. Runs have a hard timeout — anything
-   unpushed when the run dies is lost.
+6. **Save work incrementally.** The dispatcher pushes the branch and opens
+   a draft PR before you start; you commit + push after every milestone.
+   Runs have a hard timeout — anything unpushed when the run dies is lost.
+7. **Don't create branches or PRs.** On the build path the dispatcher owns
+   branch + draft-PR creation. Your job is to implement, commit, push, and
+   mark the PR ready — never `git checkout -b` a new branch or run
+   `gh pr create`.
 
 ## PR contract
 
