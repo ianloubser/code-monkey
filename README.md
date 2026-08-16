@@ -4,22 +4,29 @@ Self-expanding automation hub for your personal GitHub. Drop ideas in
 issues, label them `build`, and opencode opens a PR.
 
 Built on top of the upstream
-[`anomalyco/opencode/github`](https://github.com/anomalyco/opencode/tree/dev/github)
-action. No paid LLM API required — runs on free Zen models by default.
+[`anomalyco/opencode`](https://github.com/anomalyco/opencode) CLI. The
+**build path** (issue → PR) runs `opencode run` directly behind code-monkey's
+own dispatcher (it owns branch + draft-PR + commits); `/oc` comments and PR
+review still use the upstream `opencode github run` action. No paid LLM API
+required — runs on free Zen models by default.
 
 ## How it works
 
 ```
-issue ── label "build" ──▶ issue-to-pr.yml ──▶ opencode (free model) ──▶ draft PR ──▶ ready ──▶ review
-                                                      (branch pushed early, commits after every milestone;
-                                                       draft PRs are never auto-reviewed)
-PR comment "/oc fix this" ──▶ opencode.yml ──▶ opencode ──▶ commit ──▶ push
-PR ready ──▶ pr-review.yml ──▶ opencode (reviewer) ──▶ review comment
+issue ── label "build" ──▶ issue-to-pr.yml ──▶ reusable-opencode.yml (dispatcher)
+  └─ dispatcher: create branch agent/<n>-<kebab> + push + open draft PR
+  └─ opencode run --agent build (free-model fallback chain)
+       └─ agent: implement in milestones, commit+push after each (timeout-safe)
+       └─ agent: run lint/tests, finalize PR body, `gh pr ready` when green
+PR comment "/oc fix this" ──▶ opencode.yml ──▶ opencode github run ──▶ commit ──▶ push
+PR ready ──▶ pr-review.yml ──▶ opencode github run (reviewer) ──▶ review comment
 ```
 
 Everything is a `workflow_call` into `.github/workflows/reusable-opencode.yml`,
 which handles a free-model fallback chain so a single 429/rate-limit doesn't
-kill a run.
+kill a run. The build flow (prompt + branch/PR/commit contract) lives in the
+reusable workflow and `build.md`, shipped from `code-monkey@main` — so updates
+land in every consumer repo automatically, no per-repo edits.
 
 ## One-time setup
 
@@ -51,6 +58,13 @@ No credit card needed — the default model chain is fully free.
 
 Actions → **onboard-repo** → Run workflow.
 
+> **Required repo setting (every onboarded repo, including this one):**
+> Settings → Actions → General → Workflow permissions → enable
+> **"Allow GitHub Actions to create and approve pull requests"**. The build
+> path creates draft PRs and marks them ready using the runner's
+> `GITHUB_TOKEN`; without this toggle, `gh pr create` / `gh pr ready` return
+> 403 even though the workflow declares `pull-requests: write`.
+
 Inputs:
 - `repo_name` — lowercase, no spaces
 - `description` — optional
@@ -65,10 +79,11 @@ API key to the new repo, adds topics, and opens a welcome issue labeled
 
 In any repo that has been onboarded:
 
-- **Issue → PR:** Open an issue, add the `build` label. opencode pushes a
-  branch and opens a **draft PR** immediately, then commits and pushes after
-  every milestone — a timed-out run keeps everything pushed so far. When the
-  work is done and tests pass, it marks the PR ready for review.
+- **Issue → PR:** Open an issue, add the `build` label. The dispatcher
+  pushes branch `agent/<n>-<kebab>` and opens a **draft PR** immediately;
+  the builder then implements in milestones, committing and pushing after
+  each one — a timed-out run keeps everything pushed so far. When the work
+  is done and tests pass, the builder marks the PR ready for review.
 - **PR review:** Every PR gets an automatic review from the `review` agent —
   but only once it is **not a draft** anymore. Drafts are skipped until
   marked ready.
@@ -117,6 +132,13 @@ To update something for every consumer repo at once, edit it in
 code-monkey. To change a per-repo rule, edit the consumer repo's local
 `AGENTS.md` or add a repo-local agent/skill with the same name.
 
+> **Note:** `issue-to-pr.yml` is now a thin caller — the build prompt and
+> branch/PR/commit contract live in `reusable-opencode.yml` + `build.md`,
+> both shipped from `code-monkey@main`. So evolving the build flow no longer
+> requires touching already-onboarded repos. (`pr-review.yml` and
+> `opencode.yml` still inline their trigger config and remain frozen at
+> bootstrap until the review/comment paths are migrated too.)
+
 ## Adding a new shared skill
 
 1. Create `.opencode/skills/<name>/SKILL.md` in this repo.
@@ -134,7 +156,8 @@ The reusable workflow accepts these inputs (per caller):
 | `model` | _empty_ | Single model override; bypasses the chain |
 | `model_chain` | big-pickle → deepseek-v4-flash-free → nemotron-3-ultra-free → mimo-v2.5-free | Comma-separated fallback chain |
 | `agent` | repo default | `build`, `review`, or `plan` |
-| `prompt` | _empty_ | Override the default prompt |
+| `trigger` | _empty_ | `issue-build` = use code-monkey's dispatcher (`opencode run`, owns branch/PR/commits). Empty = legacy `opencode github run` path. |
+| `prompt` | _empty_ | Override the default prompt (legacy path) |
 | `allowed_actors` | `ian` | Comma-separated GitHub usernames |
 | `timeout_minutes` | `20` | Per-run timeout |
 
