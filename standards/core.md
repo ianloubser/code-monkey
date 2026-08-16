@@ -12,6 +12,9 @@ if a conflict exists. Detailed guidance lives in the sibling files
 4. **One issue, one PR.** Don't bundle unrelated changes.
 5. **Idempotent re-runs.** Never break when re-triggered on the same
    issue/PR. Detect existing work and pick up where you left off.
+6. **Save work incrementally.** Push the branch and open a draft PR early;
+   commit + push after every milestone. Runs have a hard timeout — anything
+   unpushed when the run dies is lost.
 
 ## PR contract
 
@@ -24,6 +27,10 @@ Every PR you open must include:
 
 If any of these are missing, the PR is incomplete — fix it before you
 finish.
+
+Draft PRs are never reviewed. Push work-in-progress to a draft PR freely;
+only mark it ready when it satisfies the contract above and you would accept
+a human review.
 
 ## Money & quota awareness
 

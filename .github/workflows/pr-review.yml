@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   review:
+    # Draft PRs get no automated review — only review work that has been
+    # marked ready for review (fires on ready_for_review, opened, etc.).
+    if: github.event.pull_request.draft == false
     uses: ./.github/workflows/reusable-opencode.yml
     with:
       agent: review
@@ -20,5 +23,5 @@ jobs:
         `.opencode/agent/review.md`. Be terse, reference file:line for every
         concern, and end with LGTM / Request changes / Needs discussion.
     secrets:
-      OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}

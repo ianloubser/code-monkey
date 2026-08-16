@@ -102,12 +102,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.OPENCODE_GH_PAT }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
           NAME: ${{ inputs.repo_name }}
           OWNER: ${{ github.repository_owner }}
         run: |
+          # Only the model API key is mirrored — maintenance workflows
+          # (issue-to-pr, pr-review, /oc) run on the repo's own GITHUB_TOKEN.
           gh secret set OPENCODE_API_KEY --repo "$OWNER/$NAME" --body "$OPENCODE_API_KEY"
-          gh secret set OPENCODE_GH_PAT --repo "$OWNER/$NAME" --body "$OPENCODE_GH_PAT"
           echo "Secrets copied to $OWNER/$NAME"
 
       - name: Open welcome issue

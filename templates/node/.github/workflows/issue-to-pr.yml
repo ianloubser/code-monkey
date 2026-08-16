@@ -17,14 +17,20 @@ jobs:
       timeout_minutes: 30
       prompt: |
         You were triggered by the `build` label on this issue. Read the full
-        issue body and all comments, then:
-        1. Search the repo for related code.
-        2. Create branch `agent/<issue-number>-<kebab-summary>`.
-        3. Make the smallest change that solves the issue.
-        4. Run the project's lint + tests. Paste output in the PR body.
-        5. Open a PR with `Fixes #<issue-number>` and the required sections.
-        If the issue is ambiguous or too large, open a **draft** PR with a
-        plan instead and stop. The user will reply `/oc go` to continue.
+        issue body and all comments, then follow your builder instructions in
+        `.opencode/agent/build.md`:
+        1. Create branch `agent/<issue-number>-<kebab-summary>` and push it.
+        2. Open a **draft** PR immediately, then implement in milestones,
+           committing and pushing after each one. This run has a hard
+           timeout — any unpushed work is lost, so never hoard commits
+           locally.
+        3. Run the project's lint + tests. Paste output in the PR body under
+           "Test plan".
+        4. When complete and green, finalize the PR body (`Fixes #<issue>`,
+           summary, test plan, risk/rollback) and run `gh pr ready`. Draft
+           PRs are never auto-reviewed, so partial work is safe to push.
+        If the issue is ambiguous or too large, leave the draft PR with a
+        plan and stop. The user will reply `/oc go` to continue.
     secrets:
-      OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}

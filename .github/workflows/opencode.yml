@@ -25,5 +25,5 @@ jobs:
     with:
       agent: build
     secrets:
-      OPENCODE_GH_PAT: ${{ secrets.OPENCODE_GH_PAT }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
