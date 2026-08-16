@@ -23,5 +23,4 @@ jobs:
         `.opencode/agent/review.md`. Be terse, reference file:line for every
         concern, and end with LGTM / Request changes / Needs discussion.
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
