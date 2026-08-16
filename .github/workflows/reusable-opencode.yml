@@ -38,11 +38,10 @@ on:
         required: false
         default: 20
     secrets:
-      # Callers pass their repo's GITHUB_TOKEN explicitly (named secrets do
-      # not cross the workflow_call boundary automatically). OPENCODE_GH_PAT
-      # is optional and only needed for cross-repo actions.
-      GITHUB_TOKEN:
-        required: false
+      # OPENCODE_GH_PAT is optional — only needed for cross-repo actions.
+      # The caller's auto-provided GITHUB_TOKEN is available in this called
+      # workflow as secrets.GITHUB_TOKEN without being passed (it's a
+      # system-reserved name and cannot be declared/passed here).
       OPENCODE_GH_PAT:
         required: false
       OPENCODE_API_KEY:
@@ -80,10 +79,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          # Persist the token so opencode's own git push works. Callers pass
-          # their repo's GITHUB_TOKEN; an optional PAT (e.g. for cross-repo
-          # work) wins when provided. Both have contents: write via the job
-          # permissions below.
+          # Persist the token so opencode's own git push works. The job's
+          # auto-provided GITHUB_TOKEN is used by default; an optional PAT
+          # (e.g. for cross-repo work) wins when provided. Both have
+          # contents: write via the job permissions below.
           token: ${{ secrets.OPENCODE_GH_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Configure git identity

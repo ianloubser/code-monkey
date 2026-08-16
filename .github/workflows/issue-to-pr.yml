@@ -33,5 +33,4 @@ jobs:
         If the issue is ambiguous or too large, leave the draft PR with a
         plan and stop. The user will reply `/oc go` to continue.
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}

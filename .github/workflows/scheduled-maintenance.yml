@@ -29,5 +29,4 @@ jobs:
         End your run by commenting on any open issues that look stale (>30d
         no activity) with a `/oc status` prompt.
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}

@@ -18,5 +18,4 @@ jobs:
     with:
       agent: review
     secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
